@@ -385,19 +385,17 @@ function renderTablaMasiva(item, data, container) {
 
   const keys = Object.keys(data);
 
-  let html = `<h3>${item.nombre} — Turno ${item.turno} (${item.fila === undefined ? "" : "Fila " + item.fila})</h3>`;
-
   if (keys.length === 0) {
-    html += `<p class="placeholder">No hay días ausentes en el rango seleccionado.</p>`;
-    div.innerHTML = html;
+    div.innerHTML = `<p class="placeholder">${item.nombre} — Turno ${item.turno}: no hay días ausentes en el rango seleccionado.</p>`;
     container.appendChild(div);
     return;
   }
 
-  html += `
+  let html = `
     <table class="tabla-resultados">
       <thead>
         <tr>
+          <th>Nombre</th>
           <th>Week</th>
           <th>Periodo</th>
           <th>Ausentismo</th>
@@ -413,6 +411,7 @@ function renderTablaMasiva(item, data, container) {
       const info = data[week];
       html += `
         <tr>
+          <td>${item.nombre}</td>
           <td>${week}</td>
           <td>${info.mes}</td>
           <td>${info.count}</td>
