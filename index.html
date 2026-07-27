@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Generador de Ausentismos</title>
+  <link rel="icon" href="https://thinking.cl/favicon.ico" type="image/x-icon">
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <div class="container">
+
+    <header class="header">
+    <div class="logo-container">
+        <a href="https://thinking.cl" target="_blank" rel="noopener">
+            <img src="https://thinking.cl/logo.png" alt="Logo Thinking" />
+        </a>
+  </div>
+      <h1>Generador de Ausentismos</h1>
+      <p>Cálculo automático por sistema de turno</p>
+    </header>
+
+    <section class="card">
+
+      <div class="form-group">
+        <label for="turno">Sistema de Turno</label>
+        <select id="turno">
+          <option value="">Seleccionar turno</option>
+          <option value="5x2">5x2</option>
+          <option value="4x3">4x3</option>
+          <option value="8x6a">8x6a</option>
+          <option value="7x7_M">7x7_M</option>
+          <option value="7x7_N">7x7_N</option>
+          <option value="7x7_P">7x7_P</option>
+          <option value="7x7_Q">7x7_Q</option>
+          <option value="4x10">4x10</option>
+          <option value="4x3_M">4x3_M</option>
+          <option value="4x3_P">4x3_P</option>
+        </select>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="inicio">Inicio Ausentismo</label>
+          <input type="date" id="inicio" />
+        </div>
+
+        <div class="form-group">
+          <label for="fin">Fin Ausentismo</label>
+          <input type="date" id="fin" />
+        </div>
+      </div>
+
+        <div class="form-actions">
+            <button id="calcular" class="btn-primary">
+                 Calcular Ausentismo
+            </button>
+
+            <button id="limpiar" class="btn-reset" title="Limpiar">
+                 ⟳
+            </button>
+        </div>
+      
+    </section>
+
+    <section class="card results">
+      <h2>Resultado</h2>
+      <div id="resultado">
+        <p class="placeholder">Aquí aparecerán los resultados...</p>
+      </div>
+    </section>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
