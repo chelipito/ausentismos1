@@ -236,7 +236,7 @@ document.getElementById("procesarCarga").addEventListener("click", async () => {
       const inicioCrudo = obtenerValorColumna(fila, ["Fecha Inicio Ausentismo", "Fecha Inicio"]);
       const finCrudo = obtenerValorColumna(fila, ["Fecha Término Ausentismo", "Fecha Termino Ausentismo", "Fecha Fin Ausentismo"]);
 
-      const turno = (turnoCrudo || "").toString().trim();
+      const turno = (turnoCrudo || "").toString().trim().replace(/\s+/g, "_");
       const inicioISO = celdaAFechaISO(inicioCrudo);
       const finISO = celdaAFechaISO(finCrudo);
 
