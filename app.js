@@ -269,10 +269,13 @@ document.getElementById("procesarCarga").addEventListener("click", async () => {
       }
     }
 
-    // Renderizar resultado por fila
+    // Recolectar filas de resultado (para una sola tabla) y errores por separado
+    const filasError = [];
+    const filasResultado = []; // { nombre, week, mes, count, turno }
+
     filasProcesadas.forEach((item) => {
       if (item.error) {
-        renderFilaError(item, resultadoMasivoDiv);
+        filasError.push(item);
         return;
       }
 
@@ -283,17 +286,43 @@ document.getElementById("procesarCarga").addEventListener("click", async () => {
 
       const faltaCalendario = anios.some((y) => !calendarioPorAnio[y]);
       if (faltaCalendario) {
-        renderFilaError(
-          { ...item, error: "No se pudo cargar el calendario del año requerido" },
-          resultadoMasivoDiv
-        );
+        filasError.push({ ...item, error: "No se pudo cargar el calendario del año requerido" });
         return;
       }
 
       const calendarioData = anios.flatMap((y) => calendarioPorAnio[y]);
       const resultado = calcularAusentismo(calendarioData, item.turno, item.inicioISO, item.finISO);
-      renderTablaMasiva(item, resultado, resultadoMasivoDiv);
+      const semanas = Object.keys(resultado).sort(
+        (a, b) => parseDDMMYYYYToLocalDate(a) - parseDDMMYYYYToLocalDate(b)
+      );
+
+      if (semanas.length === 0) {
+        filasResultado.push({
+          nombre: item.nombre,
+          turno: item.turno,
+          week: "-",
+          mes: "-",
+          count: 0,
+          sinDias: true,
+        });
+      } else {
+        semanas.forEach((week) => {
+          filasResultado.push({
+            nombre: item.nombre,
+            turno: item.turno,
+            week,
+            mes: resultado[week].mes,
+            count: resultado[week].count,
+          });
+        });
+      }
     });
+
+    // Renderizar errores primero (si los hay)
+    filasError.forEach((item) => renderFilaError(item, resultadoMasivoDiv));
+
+    // Renderizar una sola tabla continua con todos los resultados
+    renderTablaMasivaUnica(filasResultado, resultadoMasivoDiv);
   } catch (err) {
     resultadoMasivoDiv.innerHTML = `<p class="placeholder">Error al procesar el archivo: ${err.message}</p>`;
   } finally {
@@ -391,14 +420,10 @@ function renderFilaError(item, container) {
   container.appendChild(div);
 }
 
-function renderTablaMasiva(item, data, container) {
-  const div = document.createElement("div");
-  div.className = "fila-masiva";
-
-  const keys = Object.keys(data);
-
-  if (keys.length === 0) {
-    div.innerHTML = `<p class="placeholder">${item.nombre} — Turno ${item.turno}: no hay días ausentes en el rango seleccionado.</p>`;
+function renderTablaMasivaUnica(filasResultado, container) {
+  if (filasResultado.length === 0) {
+    const div = document.createElement("div");
+    div.innerHTML = '<p class="placeholder">No hay resultados para mostrar.</p>';
     container.appendChild(div);
     return;
   }
@@ -417,22 +442,31 @@ function renderTablaMasiva(item, data, container) {
       <tbody>
   `;
 
-  keys
-    .sort((a, b) => parseDDMMYYYYToLocalDate(a) - parseDDMMYYYYToLocalDate(b))
-    .forEach((week) => {
-      const info = data[week];
+  filasResultado.forEach((f) => {
+    if (f.sinDias) {
       html += `
         <tr>
-          <td>${item.nombre}</td>
-          <td>${week}</td>
-          <td>${info.mes}</td>
-          <td>${info.count}</td>
-          <td>${item.turno}</td>
+          <td>${f.nombre}</td>
+          <td colspan="3" class="placeholder">Sin días ausentes en el rango seleccionado</td>
+          <td>${f.turno}</td>
         </tr>
       `;
-    });
+    } else {
+      html += `
+        <tr>
+          <td>${f.nombre}</td>
+          <td>${f.week}</td>
+          <td>${f.mes}</td>
+          <td>${f.count}</td>
+          <td>${f.turno}</td>
+        </tr>
+      `;
+    }
+  });
 
   html += "</tbody></table>";
+
+  const div = document.createElement("div");
   div.innerHTML = html;
   container.appendChild(div);
 }
