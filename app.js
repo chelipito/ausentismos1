@@ -231,7 +231,7 @@ document.getElementById("procesarCarga").addEventListener("click", async () => {
     const filasProcesadas = [];
 
     for (const [index, fila] of filas.entries()) {
-      const nombre = obtenerValorColumna(fila, ["Nombre"]);
+      const nombre = (fila.__nombreCompletoColH || "").toString().trim() || obtenerValorColumna(fila, ["Nombre"]);
       const turnoCrudo = obtenerValorColumna(fila, ["turno", "Turno"]);
       const inicioCrudo = obtenerValorColumna(fila, ["Fecha Inicio Ausentismo", "Fecha Inicio"]);
       const finCrudo = obtenerValorColumna(fila, ["Fecha Término Ausentismo", "Fecha Termino Ausentismo", "Fecha Fin Ausentismo"]);
@@ -310,8 +310,20 @@ function leerExcel(file) {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: "array", cellDates: true });
         const primeraHoja = workbook.Sheets[workbook.SheetNames[0]];
+
         const filas = XLSX.utils.sheet_to_json(primeraHoja, { defval: "" });
-        resolve(filas);
+
+        // Lectura cruda por posición: la columna H (índice 7) trae el nombre
+        // completo del colaborador, pero su encabezado viene vacío en el
+        // archivo original, así que no se puede referenciar por nombre de columna.
+        const filasCrudas = XLSX.utils.sheet_to_json(primeraHoja, { header: 1, defval: "" });
+
+        const filasConNombreCompleto = filas.map((fila, i) => {
+          const filaCruda = filasCrudas[i + 1] || []; // +1 porque filasCrudas[0] es el encabezado
+          return { ...fila, __nombreCompletoColH: filaCruda[7] };
+        });
+
+        resolve(filasConNombreCompleto);
       } catch (err) {
         reject(err);
       }
