@@ -203,6 +203,18 @@ const TURNOS_VALIDOS = [
   "7x7_P", "7x7_Q", "4x10", "4x3_M", "4x3_P",
 ];
 
+/**
+ * Normaliza el texto de turno del Excel para que coincida con los códigos
+ * válidos sin importar mayúsculas/minúsculas ni espacios (ej: "4X3 p" -> "4x3_P").
+ */
+function normalizarTurno(turnoCrudo) {
+  const texto = (turnoCrudo || "").toString().trim().replace(/\s+/g, "_");
+  const encontrado = TURNOS_VALIDOS.find(
+    (valido) => valido.toLowerCase() === texto.toLowerCase()
+  );
+  return encontrado || texto; // si no coincide con ninguno, se devuelve tal cual (quedará marcado como no reconocido)
+}
+
 document.getElementById("procesarCarga").addEventListener("click", async () => {
   const fileInput = document.getElementById("excelFile");
   const btnProcesar = document.getElementById("procesarCarga");
@@ -231,12 +243,13 @@ document.getElementById("procesarCarga").addEventListener("click", async () => {
     const filasProcesadas = [];
 
     for (const [index, fila] of filas.entries()) {
+      const sapId = obtenerValorColumna(fila, ["SAP ID Colaborador:", "SAP ID Colaborador", "SAP ID"]);
       const nombre = (fila.__nombreCompletoColH || "").toString().trim() || obtenerValorColumna(fila, ["Nombre"]);
       const turnoCrudo = obtenerValorColumna(fila, ["turno", "Turno"]);
       const inicioCrudo = obtenerValorColumna(fila, ["Fecha Inicio Ausentismo", "Fecha Inicio"]);
       const finCrudo = obtenerValorColumna(fila, ["Fecha Término Ausentismo", "Fecha Termino Ausentismo", "Fecha Fin Ausentismo"]);
 
-      const turno = (turnoCrudo || "").toString().trim().replace(/\s+/g, "_");
+      const turno = normalizarTurno(turnoCrudo);
       const inicioISO = celdaAFechaISO(inicioCrudo);
       const finISO = celdaAFechaISO(finCrudo);
 
@@ -248,7 +261,7 @@ document.getElementById("procesarCarga").addEventListener("click", async () => {
       if (inicioISO && finISO && inicioISO > finISO) errores.push("Fecha Inicio es posterior a Fecha Término");
 
       if (errores.length > 0) {
-        filasProcesadas.push({ fila: index + 2, nombre, turno, error: errores.join(", ") });
+        filasProcesadas.push({ fila: index + 2, sapId, nombre, turno, error: errores.join(", ") });
         continue;
       }
 
@@ -256,7 +269,7 @@ document.getElementById("procesarCarga").addEventListener("click", async () => {
       const anioFin = parseISOToLocalDate(finISO).getFullYear();
       for (let y = anioInicio; y <= anioFin; y++) aniosNecesarios.add(y);
 
-      filasProcesadas.push({ fila: index + 2, nombre, turno, inicioISO, finISO });
+      filasProcesadas.push({ fila: index + 2, sapId, nombre, turno, inicioISO, finISO });
     }
 
     // Cargar todos los calendarios necesarios (una sola vez por año)
@@ -298,6 +311,7 @@ document.getElementById("procesarCarga").addEventListener("click", async () => {
 
       if (semanas.length === 0) {
         filasResultado.push({
+          sapId: item.sapId,
           nombre: item.nombre,
           turno: item.turno,
           week: "-",
@@ -308,6 +322,7 @@ document.getElementById("procesarCarga").addEventListener("click", async () => {
       } else {
         semanas.forEach((week) => {
           filasResultado.push({
+            sapId: item.sapId,
             nombre: item.nombre,
             turno: item.turno,
             week,
@@ -413,8 +428,9 @@ function celdaAFechaISO(valor) {
 function renderFilaError(item, container) {
   const div = document.createElement("div");
   div.className = "fila-masiva fila-masiva-error";
+  const etiqueta = [item.sapId, item.nombre].filter(Boolean).join(" — ");
   div.innerHTML = `
-    <h3>Fila ${item.fila}${item.nombre ? " — " + item.nombre : ""}</h3>
+    <h3>Fila ${item.fila}${etiqueta ? " — " + etiqueta : ""}</h3>
     <p class="placeholder">⚠️ ${item.error}</p>
   `;
   container.appendChild(div);
@@ -432,6 +448,7 @@ function renderTablaMasivaUnica(filasResultado, container) {
     <table class="tabla-resultados">
       <thead>
         <tr>
+          <th>SAP ID</th>
           <th>Nombre</th>
           <th>Week</th>
           <th>Periodo</th>
@@ -446,6 +463,7 @@ function renderTablaMasivaUnica(filasResultado, container) {
     if (f.sinDias) {
       html += `
         <tr>
+          <td>${f.sapId}</td>
           <td>${f.nombre}</td>
           <td colspan="3" class="placeholder">Sin días ausentes en el rango seleccionado</td>
           <td>${f.turno}</td>
@@ -454,6 +472,7 @@ function renderTablaMasivaUnica(filasResultado, container) {
     } else {
       html += `
         <tr>
+          <td>${f.sapId}</td>
           <td>${f.nombre}</td>
           <td>${f.week}</td>
           <td>${f.mes}</td>

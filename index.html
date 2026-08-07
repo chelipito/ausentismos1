@@ -71,36 +71,8 @@
       </div>
     </section>
 
-    <section class="card">
-      <h2>Carga Masiva (Excel)</h2>
-      <p class="hint-text">
-        El archivo debe incluir columnas: <strong>Nombre</strong>,
-        <strong>Fecha Inicio Ausentismo</strong>, <strong>Fecha Término Ausentismo</strong>
-        y <strong>turno</strong> (con los mismos códigos del selector de arriba: 5x2, 4x3, 8x6a, 7x7_M, 7x7_N, 7x7_P, 7x7_Q, 4x10, 4x3_M, 4x3_P).
-      </p>
-
-      <div class="form-group">
-        <label for="excelFile">Selecciona el archivo Excel</label>
-        <input type="file" id="excelFile" accept=".xlsx,.xls" />
-      </div>
-
-      <div class="form-actions">
-        <button id="procesarCarga" class="btn-primary">
-          Procesar Carga Masiva
-        </button>
-      </div>
-    </section>
-
-    <section class="card results">
-      <h2>Resultados Carga Masiva</h2>
-      <div id="resultadoMasivo">
-        <p class="placeholder">Aquí aparecerán los resultados de la carga masiva...</p>
-      </div>
-    </section>
-
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
