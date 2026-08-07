@@ -243,6 +243,7 @@ document.getElementById("procesarCarga").addEventListener("click", async () => {
     const filasProcesadas = [];
 
     for (const [index, fila] of filas.entries()) {
+      const sapId = obtenerValorColumna(fila, ["SAP ID Colaborador:", "SAP ID Colaborador", "SAP ID"]);
       const nombre = (fila.__nombreCompletoColH || "").toString().trim() || obtenerValorColumna(fila, ["Nombre"]);
       const turnoCrudo = obtenerValorColumna(fila, ["turno", "Turno"]);
       const inicioCrudo = obtenerValorColumna(fila, ["Fecha Inicio Ausentismo", "Fecha Inicio"]);
@@ -260,7 +261,7 @@ document.getElementById("procesarCarga").addEventListener("click", async () => {
       if (inicioISO && finISO && inicioISO > finISO) errores.push("Fecha Inicio es posterior a Fecha Término");
 
       if (errores.length > 0) {
-        filasProcesadas.push({ fila: index + 2, nombre, turno, error: errores.join(", ") });
+        filasProcesadas.push({ fila: index + 2, sapId, nombre, turno, error: errores.join(", ") });
         continue;
       }
 
@@ -268,7 +269,7 @@ document.getElementById("procesarCarga").addEventListener("click", async () => {
       const anioFin = parseISOToLocalDate(finISO).getFullYear();
       for (let y = anioInicio; y <= anioFin; y++) aniosNecesarios.add(y);
 
-      filasProcesadas.push({ fila: index + 2, nombre, turno, inicioISO, finISO });
+      filasProcesadas.push({ fila: index + 2, sapId, nombre, turno, inicioISO, finISO });
     }
 
     // Cargar todos los calendarios necesarios (una sola vez por año)
@@ -310,6 +311,7 @@ document.getElementById("procesarCarga").addEventListener("click", async () => {
 
       if (semanas.length === 0) {
         filasResultado.push({
+          sapId: item.sapId,
           nombre: item.nombre,
           turno: item.turno,
           week: "-",
@@ -320,6 +322,7 @@ document.getElementById("procesarCarga").addEventListener("click", async () => {
       } else {
         semanas.forEach((week) => {
           filasResultado.push({
+            sapId: item.sapId,
             nombre: item.nombre,
             turno: item.turno,
             week,
@@ -444,6 +447,7 @@ function renderTablaMasivaUnica(filasResultado, container) {
     <table class="tabla-resultados">
       <thead>
         <tr>
+          <th>SAP ID</th>
           <th>Nombre</th>
           <th>Week</th>
           <th>Periodo</th>
@@ -458,6 +462,7 @@ function renderTablaMasivaUnica(filasResultado, container) {
     if (f.sinDias) {
       html += `
         <tr>
+          <td>${f.sapId}</td>
           <td>${f.nombre}</td>
           <td colspan="3" class="placeholder">Sin días ausentes en el rango seleccionado</td>
           <td>${f.turno}</td>
@@ -466,6 +471,7 @@ function renderTablaMasivaUnica(filasResultado, container) {
     } else {
       html += `
         <tr>
+          <td>${f.sapId}</td>
           <td>${f.nombre}</td>
           <td>${f.week}</td>
           <td>${f.mes}</td>
