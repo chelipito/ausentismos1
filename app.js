@@ -203,6 +203,18 @@ const TURNOS_VALIDOS = [
   "7x7_P", "7x7_Q", "4x10", "4x3_M", "4x3_P",
 ];
 
+/**
+ * Normaliza el texto de turno del Excel para que coincida con los códigos
+ * válidos sin importar mayúsculas/minúsculas ni espacios (ej: "4X3 p" -> "4x3_P").
+ */
+function normalizarTurno(turnoCrudo) {
+  const texto = (turnoCrudo || "").toString().trim().replace(/\s+/g, "_");
+  const encontrado = TURNOS_VALIDOS.find(
+    (valido) => valido.toLowerCase() === texto.toLowerCase()
+  );
+  return encontrado || texto; // si no coincide con ninguno, se devuelve tal cual (quedará marcado como no reconocido)
+}
+
 document.getElementById("procesarCarga").addEventListener("click", async () => {
   const fileInput = document.getElementById("excelFile");
   const btnProcesar = document.getElementById("procesarCarga");
@@ -236,7 +248,7 @@ document.getElementById("procesarCarga").addEventListener("click", async () => {
       const inicioCrudo = obtenerValorColumna(fila, ["Fecha Inicio Ausentismo", "Fecha Inicio"]);
       const finCrudo = obtenerValorColumna(fila, ["Fecha Término Ausentismo", "Fecha Termino Ausentismo", "Fecha Fin Ausentismo"]);
 
-      const turno = (turnoCrudo || "").toString().trim().replace(/\s+/g, "_");
+      const turno = normalizarTurno(turnoCrudo);
       const inicioISO = celdaAFechaISO(inicioCrudo);
       const finISO = celdaAFechaISO(finCrudo);
 
