@@ -30,7 +30,8 @@ document.getElementById("calcular").addEventListener("click", async () => {
 
     const calendarioData = anios.flatMap((y) => calendarioPorAnio[y]);
     const resultado = calcularAusentismo(calendarioData, turno, inicio, fin);
-    renderTabla(resultado, turno);
+    const etiquetaLP = calcularEtiquetaLP(calendarioData, turno, parseISOToLocalDate(inicio), parseISOToLocalDate(fin));
+    renderTabla(resultado, turno, etiquetaLP);
   } catch (err) {
     resultadoDiv.innerHTML = `<p class="placeholder">Error: ${err.message}</p>`;
   } finally {
@@ -130,6 +131,58 @@ function formatFecha(fecha) {
   return `${d}-${m}-${y}`;
 }
 
+/**
+ * Determina si un rango de ausentismo corresponde a "Largo Plazo" (LP)
+ * para un turno especifico, usando el calendario real (no el dia calendario).
+ *
+ * Para cada mes que toca el rango [inicioDate, finDate], se calcula:
+ *   - primerDiaTrabajo: el primer dia de ese mes en que el turno trabaja
+ *   - ultimoDiaTrabajo: el ultimo dia de ese mes en que el turno trabaja
+ * Ese mes se considera "cubierto completo" si inicioDate <= primerDiaTrabajo
+ * y finDate >= ultimoDiaTrabajo (aunque el mes anterior no haya calzado).
+ *
+ * Si hay al menos un mes cubierto completo, retorna "LP hasta DD-MM-YYYY"
+ * (el dia 1 del mes siguiente al ULTIMO mes cubierto). Si no hay ninguno,
+ * retorna null.
+ */
+function calcularEtiquetaLP(calendarioData, turno, inicioDate, finDate) {
+  const mesesCubiertos = [];
+
+  const cursor = new Date(inicioDate.getFullYear(), inicioDate.getMonth(), 1, 12, 0, 0);
+  const cursorFin = new Date(finDate.getFullYear(), finDate.getMonth(), 1, 12, 0, 0);
+
+  while (cursor <= cursorFin) {
+    const anio = cursor.getFullYear();
+    const mes = cursor.getMonth();
+
+    let primerDiaTrabajo = null;
+    let ultimoDiaTrabajo = null;
+
+    for (const dia of calendarioData) {
+      const fecha = parseISOToLocalDate(dia.fecha_iso);
+      if (fecha.getFullYear() !== anio || fecha.getMonth() !== mes) continue;
+      if (Number(dia[turno]) !== 1) continue;
+
+      if (primerDiaTrabajo === null || fecha < primerDiaTrabajo) primerDiaTrabajo = fecha;
+      if (ultimoDiaTrabajo === null || fecha > ultimoDiaTrabajo) ultimoDiaTrabajo = fecha;
+    }
+
+    if (primerDiaTrabajo && ultimoDiaTrabajo) {
+      if (inicioDate <= primerDiaTrabajo && finDate >= ultimoDiaTrabajo) {
+        mesesCubiertos.push({ anio, mes });
+      }
+    }
+
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+
+  if (mesesCubiertos.length === 0) return null;
+
+  const ultimoMesCubierto = mesesCubiertos[mesesCubiertos.length - 1];
+  const diaSiguiente = new Date(ultimoMesCubierto.anio, ultimoMesCubierto.mes + 1, 1, 12, 0, 0);
+  return `LP hasta ${formatFecha(diaSiguiente)}`;
+}
+
 function obtenerNombreMes(fecha) {
   const meses = [
     "Enero","Febrero","Marzo","Abril","Mayo","Junio",
@@ -138,7 +191,7 @@ function obtenerNombreMes(fecha) {
   return meses[fecha.getMonth()];
 }
 
-function renderTabla(data, turno) {
+function renderTabla(data, turno, etiquetaLP) {
   const resultadoDiv = document.getElementById("resultado");
 
   const keys = Object.keys(data);
@@ -155,6 +208,7 @@ function renderTabla(data, turno) {
           <th>Periodo</th>
           <th>Ausentismo</th>
           <th>Turno</th>
+          <th>LP</th>
         </tr>
       </thead>
       <tbody>
@@ -170,6 +224,7 @@ function renderTabla(data, turno) {
           <td>${info.mes}</td>
           <td>${info.count}</td>
           <td>${turno}</td>
+          <td>${etiquetaLP || "-"}</td>
         </tr>
       `;
     });
@@ -308,6 +363,12 @@ document.getElementById("procesarCarga").addEventListener("click", async () => {
       const semanas = Object.keys(resultado).sort(
         (a, b) => parseDDMMYYYYToLocalDate(a) - parseDDMMYYYYToLocalDate(b)
       );
+      const etiquetaLP = calcularEtiquetaLP(
+        calendarioData,
+        item.turno,
+        parseISOToLocalDate(item.inicioISO),
+        parseISOToLocalDate(item.finISO)
+      );
 
       if (semanas.length === 0) {
         filasResultado.push({
@@ -318,6 +379,7 @@ document.getElementById("procesarCarga").addEventListener("click", async () => {
           mes: "-",
           count: 0,
           sinDias: true,
+          etiquetaLP,
         });
       } else {
         semanas.forEach((week) => {
@@ -328,6 +390,7 @@ document.getElementById("procesarCarga").addEventListener("click", async () => {
             week,
             mes: resultado[week].mes,
             count: resultado[week].count,
+            etiquetaLP,
           });
         });
       }
@@ -353,14 +416,28 @@ function leerExcel(file) {
       try {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: "array", cellDates: true });
-        const primeraHoja = workbook.Sheets[workbook.SheetNames[0]];
 
-        const filas = XLSX.utils.sheet_to_json(primeraHoja, { defval: "" });
+        // Buscar específicamente la hoja "Hoja1" (insensible a mayúsculas/espacios).
+        // Si no existe con ese nombre exacto, se usa la primera hoja del archivo como respaldo.
+        const nombreHojaBuscada = "hoja1";
+        const nombreHojaEncontrado = workbook.SheetNames.find(
+          (n) => n.trim().toLowerCase() === nombreHojaBuscada
+        );
+
+        if (!nombreHojaEncontrado) {
+          throw new Error(
+            `No se encontró una hoja llamada "Hoja1" en el archivo. Hojas disponibles: ${workbook.SheetNames.join(", ")}`
+          );
+        }
+
+        const hoja = workbook.Sheets[nombreHojaEncontrado];
+
+        const filas = XLSX.utils.sheet_to_json(hoja, { defval: "" });
 
         // Lectura cruda por posición: la columna H (índice 7) trae el nombre
         // completo del colaborador, pero su encabezado viene vacío en el
         // archivo original, así que no se puede referenciar por nombre de columna.
-        const filasCrudas = XLSX.utils.sheet_to_json(primeraHoja, { header: 1, defval: "" });
+        const filasCrudas = XLSX.utils.sheet_to_json(hoja, { header: 1, defval: "" });
 
         const filasConNombreCompleto = filas.map((fila, i) => {
           const filaCruda = filasCrudas[i + 1] || []; // +1 porque filasCrudas[0] es el encabezado
@@ -453,6 +530,7 @@ function renderTablaMasivaUnica(filasResultado, container) {
           <th>Periodo</th>
           <th>Ausentismo</th>
           <th>Turno</th>
+          <th>LP</th>
         </tr>
       </thead>
       <tbody>
@@ -466,6 +544,7 @@ function renderTablaMasivaUnica(filasResultado, container) {
           <td>${f.nombre}</td>
           <td colspan="3" class="placeholder">Sin días ausentes en el rango seleccionado</td>
           <td>${f.turno}</td>
+          <td>${f.etiquetaLP || "-"}</td>
         </tr>
       `;
     } else {
@@ -477,6 +556,7 @@ function renderTablaMasivaUnica(filasResultado, container) {
           <td>${f.mes}</td>
           <td>${f.count}</td>
           <td>${f.turno}</td>
+          <td>${f.etiquetaLP || "-"}</td>
         </tr>
       `;
     }
